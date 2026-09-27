@@ -30,7 +30,7 @@ one-hop signature on two-hop test: 1.000
 ```
 
 The discovery GCDs had 1,490 factors unique to the two-hop GCD and 1,463 unique
-to the one-hop GCD, but both signatures appeared in every held-out example from
+to the one-hop GCD, but at least one factor from each signature set appeared in every held-out example from
 both classes.
 
 ### Near-GCD (threshold = 0.80)

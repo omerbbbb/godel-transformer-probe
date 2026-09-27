@@ -251,7 +251,7 @@ Near-GCD test at threshold `0.80`:
 | two-hop near-GCD | 1.000 | 1.000 |
 | one-hop near-GCD | 1.000 | 0.867 |
 
-The near-GCD rule therefore also failed to produce a useful held-out separator.
+Using the same "contains any signature factor" rule, the near-GCD sets also failed to produce a useful held-out separator.
 The one-hop signature showed only weak asymmetry, while the two-hop signature
 appeared in every test example from both classes.
 

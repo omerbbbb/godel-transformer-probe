@@ -18,7 +18,7 @@ from .prompts import LETTERS, make_pairs
 def load_model(name: str, device: torch.device):
     """Load a frozen causal language model with eager attention when supported."""
     tokenizer = AutoTokenizer.from_pretrained(name)
-    kwargs = {"torch_dtype": "auto"}
+    kwargs = {"torch_dtype": (torch.float16 if device.type == "cuda" else torch.float32)}
 
     try:
         model = AutoModelForCausalLM.from_pretrained(
