@@ -1,0 +1,35 @@
+[
+  {
+    "model": "example/model",
+    "status": "ok",
+    "paired_correct": 12,
+    "discover_chains": 6,
+    "test_chains": 6,
+    "exact": {
+      "two_on_two": 0.5,
+      "two_on_one": 0.0,
+      "one_on_one": 0.33,
+      "one_on_two": 0.0,
+      "gcd_one_factors": 10,
+      "gcd_two_factors": 12,
+      "unique_one_factors": 2,
+      "unique_two_factors": 3
+    },
+    "near": {
+      "threshold": 0.8,
+      "two_on_two": 0.67,
+      "two_on_one": 0.17,
+      "one_on_one": 0.5,
+      "one_on_two": 0.0,
+      "near_one_factors": 4,
+      "near_two_factors": 5
+    },
+    "prime_examples": [
+      {
+        "prime": 17,
+        "factor": "('P', 2, 1, 8, 5, 0, 3)"
+      }
+    ],
+    "note": "Illustrative schema only \u2014 not an experimental result."
+  }
+]

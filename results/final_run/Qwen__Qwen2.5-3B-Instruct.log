@@ -1,0 +1,24 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+=== Qwen/Qwen2.5-3B-Instruct ===
+
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]
+Fetching 2 files:  50%|█████     | 1/2 [00:10<00:10, 10.25s/it]
+Fetching 2 files: 100%|██████████| 2/2 [00:14<00:00,  6.60s/it]
+Fetching 2 files: 100%|██████████| 2/2 [00:14<00:00,  7.15s/it]
+
+Loading weights:   0%|          | 0/434 [00:00<?, ?it/s]
+Loading weights:  53%|█████▎    | 231/434 [00:00<00:00, 2265.16it/s]
+Loading weights: 100%|██████████| 434/434 [00:00<00:00, 2534.70it/s]
+paired-correct chains: 30/30
+  extracted 10/60
+  extracted 20/60
+  extracted 30/60
+  extracted 40/60
+  extracted 50/60
+  extracted 60/60
+exact gcd test: {'two_on_two': 1.0, 'two_on_one': 1.0, 'one_on_one': 1.0, 'one_on_two': 1.0, 'gcd_one_factors': 73299, 'gcd_two_factors': 73326, 'unique_one_factors': 1463, 'unique_two_factors': 1490}
+near-gcd test: {'threshold': 0.8, 'two_on_two': 1.0, 'two_on_one': 1.0, 'one_on_one': 1.0, 'one_on_two': 0.8666666666666667, 'near_one_factors': 541, 'near_two_factors': 633}
+
+Saved: /content/godel_final_run/Qwen__Qwen2.5-3B-Instruct.json

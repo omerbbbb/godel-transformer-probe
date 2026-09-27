@@ -1,0 +1,73 @@
+{
+  "models_attempted": [
+    "Qwen/Qwen2.5-1.5B-Instruct",
+    "Qwen/Qwen2.5-3B-Instruct"
+  ],
+  "successful_model": "Qwen/Qwen2.5-3B-Instruct",
+  "results": [
+    {
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "status": "too_weak",
+      "paired_correct": 0
+    },
+    {
+      "model": "Qwen/Qwen2.5-3B-Instruct",
+      "status": "ok",
+      "paired_correct": 30,
+      "exact": {
+        "two_on_two": 1.0,
+        "two_on_one": 1.0,
+        "one_on_one": 1.0,
+        "one_on_two": 1.0,
+        "gcd_one_factors": 73299,
+        "gcd_two_factors": 73326,
+        "unique_one_factors": 1463,
+        "unique_two_factors": 1490
+      },
+      "near": {
+        "threshold": 0.8,
+        "two_on_two": 1.0,
+        "two_on_one": 1.0,
+        "one_on_one": 1.0,
+        "one_on_two": 0.8666666666666667,
+        "near_one_factors": 541,
+        "near_two_factors": 633
+      },
+      "prime_examples": [
+        {
+          "prime": 2207,
+          "factor": "('E', 0, 3, 25, 15)"
+        },
+        {
+          "prime": 15559,
+          "factor": "('E', 11, 14, 26, 25)"
+        },
+        {
+          "prime": 26699,
+          "factor": "('E', 13, 2, 25, 15)"
+        },
+        {
+          "prime": 38189,
+          "factor": "('E', 15, 4, 25, 17)"
+        },
+        {
+          "prime": 39409,
+          "factor": "('E', 15, 8, 25, 0)"
+        },
+        {
+          "prime": 46681,
+          "factor": "('E', 17, 10, 25, 15)"
+        },
+        {
+          "prime": 47057,
+          "factor": "('E', 17, 11, 25, 15)"
+        },
+        {
+          "prime": 47737,
+          "factor": "('E', 17, 13, 25, 19)"
+        }
+      ],
+      "note": "E=(local attention edge); P=(two-layer composed ancestry path). No task labels/token identities enter the factor definition."
+    }
+  ]
+}

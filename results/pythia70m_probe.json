@@ -1,0 +1,10 @@
+[
+  {
+    "model": "EleutherAI/pythia-70m",
+    "status": "too_weak",
+    "paired_correct": 0,
+    "requested_pairs": 20,
+    "source": "notebooks/executed/godel_probe_pythia70m_executed.ipynb",
+    "note": "The model solved 0/20 matched chains in both one-hop and two-hop form, so the probe stopped before exact-GCD / near-GCD evaluation."
+  }
+]

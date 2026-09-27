@@ -1,0 +1,11 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+=== Qwen/Qwen2.5-1.5B-Instruct ===
+
+Loading weights:   0%|          | 0/338 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/338 [00:00<00:53,  6.31it/s]
+Loading weights: 100%|██████████| 338/338 [00:00<00:00, 1456.77it/s]
+paired-correct chains: 0/30
+
+Saved: /content/godel_final_run/Qwen__Qwen2.5-1.5B-Instruct.json

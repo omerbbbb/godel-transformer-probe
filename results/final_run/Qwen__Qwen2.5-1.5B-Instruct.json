@@ -1,0 +1,7 @@
+[
+  {
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "status": "too_weak",
+    "paired_correct": 0
+  }
+]
