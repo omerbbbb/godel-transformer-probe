@@ -48,7 +48,10 @@ correctly in **both** matched forms were retained before the discovery/test spli
 
 With 1,000 permutations, `0.000999 = 1/1001` is the minimum attainable
 Monte-Carlo p-value under the implemented add-one correction; no sampled null
-permutation matched or exceeded the observed statistic in either run.
+permutation matched or exceeded the observed statistic in either run. The null
+is nearly flat (SD ≈ 0.01, 95th percentile 0.50), so this p-value mainly shows
+that the real labels yield a signature pointing the right way; see
+[Statistics](#statistics).
 
 This is evidence that the **current graded structural score** separates the
 held-out one-hop and two-hop members of solved matched chains better than the
@@ -203,13 +206,19 @@ pytest
 Cheap first run:
 
 ```bash
-godel-probe   --models EleutherAI/pythia-70m   --pairs 20   --out results/pythia70m.json
+godel-probe \
+  --models EleutherAI/pythia-70m \
+  --pairs 20 \
+  --out results/pythia70m.json
 ```
 
 Cross-model run:
 
 ```bash
-godel-probe   --models     EleutherAI/pythia-70m     EleutherAI/pythia-160m     gpt2   --pairs 40   --out results/cross_model.json
+godel-probe \
+  --models EleutherAI/pythia-70m EleutherAI/pythia-160m gpt2 \
+  --pairs 40 \
+  --out results/cross_model.json
 ```
 
 Main configuration used for the corrected final run (run each model separately
@@ -302,6 +311,17 @@ p-value `(1 + #null ≥ observed) / (1 + N)`, and the effect over the null.
 The final run used 26 and 30 held-out matched chains. With 1,000 permutations,
 the smallest reportable p-value is `1/1001 ≈ 0.000999`.
 
+**The null is nearly flat in the final run.** With 25–30 discovery chains,
+shuffled labels almost never produce any near-GCD factors, so the permuted
+signatures are usually empty, held-out pairs tie, and the null collapses to
+about 0.5 (v3: null SD ≈ 0.01, null 95th percentile = 0.50). The p-value of
+1/1001 therefore mainly shows that the *real* labels produce a signature that
+points the right way on held-out chains, rather than measuring a graded effect
+size against a rich null distribution. For the same reason, the `effect_z`
+field in the JSON (observed minus null mean, divided by null SD) is **not a
+meaningful effect size** when the null is near-degenerate and should not be
+quoted.
+
 `results/example_output.json` shows the schema only and is deliberately labeled
 as illustrative rather than experimental evidence.
 
@@ -362,8 +382,8 @@ partial for 1.5B (0.75 paired accuracy) and perfect on this held-out sample for
 This does **not** show that attention edges and two-layer ancestry paths are a
 complete causal description of reasoning, nor does it establish generalization
 to other tasks, model families, seeds, or prompt distributions. It shows that
-this particular structural encoding contains a reproducible class-associated
-signal under the tested setup after the obvious positional shortcut and dtype
+this particular structural encoding contains a class-associated signal,
+observed in one seed and one discovery/test split, under the tested setup after the obvious positional shortcut and dtype
 artifact were addressed.
 
 See `results/FINAL_RESULT.md` for the concise result statement and
@@ -416,7 +436,7 @@ rather than **one-hop vs. two-hop computation**.
 Conditioning on both forms being correct does not solve every confound, but it
 makes the comparison substantially cleaner.
 
-## Why this is only a first probe
+## Limitations (why this is only a first probe)
 
 The current representation is deliberately simple:
 
@@ -427,10 +447,58 @@ The current representation is deliberately simple:
 - the near-GCD threshold is a fixed heuristic, not a learned classifier;
 - conditioning on paired-correct examples changes the evaluated population;
 - cross-model runs should not be interpreted as identical prime identities
-  across architectures.
+  across architectures;
+- the result comes from one seed and one discovery/test split.
 
-A stronger follow-up would add MLP/residual contributions, causal ablations,
-longer ancestry paths, repeated splits/seeds, and explicit null distributions.
+### Known limitation: start-letter surface cue
+
+In the current prompt generator (`src/godel_probe/prompts.py`, lines 70–86),
+the hop class is confounded with a surface feature of the prompt. In a
+two-hop prompt the start letter `A` appears **once** in the fact lines (only
+as a source, `A -> B`); in the matched one-hop prompt the start letter `B`
+appears **twice** (as the target of `A -> B` and the source of `B -> C`).
+This held in all 300 prompts of the final 150-chain run. The distractor
+facts do not remove it, because they use disjoint letters.
+
+A simple duplicate-token or "does the start letter appear after an arrow"
+attention pattern could therefore separate the classes without performing
+any multi-hop computation. Several of the reported signature factors attend
+to key position 0, which overlaps with the known attention-sink behaviour
+described by Xiao et al. (2023). The current result should be read as
+"the structural encoding separates the two prompt classes", not as evidence
+that it isolates multi-hop reasoning specifically.
+
+Planned fix: add a shared "feeder" fact `Z -> A` to every chain, so both
+start letters appear twice and both appear as an arrow target, while the
+answers stay unchanged (A → B → C and B → C). Then rerun the analysis.
+
+## Future work
+
+- **Feeder-fact control:** rerun with a shared `Z -> A` fact in every chain
+  to remove the start-letter surface cue described above.
+- **Multiple seeds and splits:** repeat the discovery/test split and prompt
+  generation over several seeds and report confidence intervals for paired
+  held-out accuracy.
+- MLP/residual contributions, causal ablations and longer ancestry paths.
+
+## Related work
+
+- Xiao et al. (2023), *Efficient Streaming Language Models with Attention
+  Sinks* ([arXiv:2309.17453](https://arxiv.org/abs/2309.17453)): documents
+  that many heads place large attention on initial tokens ("attention
+  sinks"). This is relevant because several signature factors here attend
+  to position 0.
+- Yang et al. (2024), *Do Large Language Models Latently Perform Multi-Hop
+  Reasoning?* ([arXiv:2402.16837](https://arxiv.org/abs/2402.16837)):
+  studies whether LLMs internally compose two-hop facts.
+- Biran et al. (2024), *Hopping Too Late: Exploring the Limitations of Large
+  Language Models on Multi-Hop Queries*
+  ([arXiv:2406.12775](https://arxiv.org/abs/2406.12775)): analyses where in
+  the network the first and second hops are resolved.
+
+This project uses synthetic arrow chains and a structural attention encoding
+rather than factual knowledge, and does not claim to reproduce or extend
+these results.
 
 ## Notebook
 
