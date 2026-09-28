@@ -11,54 +11,56 @@ factors and works directly with the implied prime factorization.
 > **No training or fine-tuning is performed.** The probe only inspects frozen
 > pretrained models.
 
-## Status: confound found in v1, fixed in v0.2 — rerun pending
+## Status: v0.2 rerun complete — de-confounded held-out result
 
-A review of the v1 result (below) found a **positional shortcut** in the
-prompts. In v1 every prompt listed the facts as `A -> B` then `B -> C`, so the
-correct answer was *always the last letter of the last fact line*. A model can
-pass the "paired-correct" filter without following the arrows at all.
+A review of the original v1 experiment found two important problems: a
+**positional shortcut** in the prompt format and a **float16 numerical issue**.
+The repository keeps those earlier artifacts for transparency, but the main
+result now comes from the corrected v0.2 setup.
 
-Evidence:
+The v0.2 fixes are:
 
-- the trivial heuristic "answer = target of the last fact line" scores
-  **100%** on the v1 prompts (`godel-shortcut-check --distractors 0 --no-shuffle`);
-- Pythia-70M answered 21/40 v1 prompts correctly, but only 4/40 when the two
-  fact lines were simply swapped.
+1. **De-confounded prompts.** Each prompt adds two irrelevant distractor facts
+   and shuffles all fact lines in a seeded order. The matched one-hop / two-hop
+   prompts still share the same facts and differ only in the start letter.
+2. **Shortcut check.** Every run measures several trivial heuristics before any
+   model analysis. In the final 150-chain run, `last_fact_target` scored
+   **27.3%** and `first_fact_target` **24.7%**, close to the 25% random-fact-line
+   baseline. The old v1 `last_fact_target` shortcut scored 100%.
+3. **Permutation null.** The original "any signature factor is present" rule
+   was too permissive. It is retained as a diagnostic, but the main statistic
+   is now a graded near-GCD score evaluated on held-out matched chains against
+   a within-pair label-permutation null.
+4. **Safer dtype handling.** `--dtype auto` uses bfloat16 on supported CUDA
+   devices and float32 otherwise, while non-finite answer scores or attentions
+   raise errors instead of being silently counted as failures.
 
-So the v1 result (Qwen2.5-3B solving 30/30 matched chains, with signatures
-that did not separate one-hop from two-hop) cannot be read as evidence about
-multi-hop computation: the model may have been copying the last letter in
-both conditions.
+### Corrected v0.2 result
 
-Fixes in v0.2:
+The final rerun used **150 random chains**, seed 7, two distractor facts, shuffled
+fact order, `near_gcd=0.80`, and 1,000 label permutations. Only chains solved
+correctly in **both** matched forms were retained before the discovery/test split.
 
-1. **De-confounded prompts.** Each prompt adds irrelevant distractor facts
-   (default 2, forming a disjoint decoy chain with the same format and
-   vocabulary) and the fact lines are shuffled in a seeded random order per
-   chain. The matched one-hop / two-hop prompts still share identical fact
-   lines and differ only in the start letter.
-2. **Shortcut check.** Every run reports the accuracy of trivial heuristics
-   (last/first fact line, first/last chain end, one step from start) next to
-   their chance levels. With the new prompts, positional heuristics sit at
-   chance (≈25% for a random fact line, ≈50% for a random chain end).
-3. **Permutation null.** The old rule ("a signature fires if *any* of its
-   factors is present") fires on nearly everything once a signature has
-   hundreds of factors. It is kept for comparison, but the main statistic is
-   now a graded score with a shuffled-label null (see *Statistics* below).
-4. **dtype.** v1 loaded models in float16 on GPU. Qwen2.5-class models can
-   overflow in float16, and NaN log-probabilities were silently counted as
-   wrong answers — a likely explanation for Qwen2.5-1.5B scoring 0/30. The
-   dtype is now configurable (`--dtype`, default `auto` = bfloat16 on GPUs
-   that support it, float32 otherwise) and non-finite scores or attentions
-   now raise an error instead of being counted as incorrect. CPU checks
-   (v1 prompts, seed 7): Qwen2.5-1.5B-Instruct in float32 solved **10/10**
-   matched chains, and Pythia-70M in float16 produced non-finite
-   log-probabilities for every candidate, which the v1 code would have
-   counted as 24 wrong answers. So the earlier `0/30` (and probably Pythia's
-   `0/20`) looks like a numerical artifact, not model weakness.
+| Model | Paired-correct | Discovery | Test | Held-out paired accuracy | Null mean | One-sided permutation p |
+|---|---:|---:|---:|---:|---:|---:|
+| `Qwen/Qwen2.5-1.5B-Instruct` | 51 / 150 | 25 | 26 | **0.75** | 0.4997 | **0.000999** |
+| `Qwen/Qwen2.5-3B-Instruct` | 60 / 150 | 30 | 30 | **1.00** | 0.5004 | **0.000999** |
 
-**A rerun of the main experiment with the de-confounded prompts is pending.**
-The v1 artifacts are kept unchanged in `results/final_run/` as a record.
+With 1,000 permutations, `0.000999 = 1/1001` is the minimum attainable
+Monte-Carlo p-value under the implemented add-one correction; no sampled null
+permutation matched or exceeded the observed statistic in either run.
+
+This is evidence that the **current graded structural score** separates the
+held-out one-hop and two-hop members of solved matched chains better than the
+label-permutation null in this setup. It is **not** evidence that the probe has
+identified the model's full causal mechanism, and it should not be generalized
+beyond the tested prompts, seed, model family, and correctness-conditioned
+population. The older exact/"any factor" rule remained non-discriminative and
+is kept only as a comparison.
+
+Full corrected artifacts are in `results/final_run_v3/`; the smaller corrected
+pilot is in `results/final_run_v2/`; the confounded v1 run remains in
+`results/final_run/`.
 
 ## Research question
 
@@ -169,13 +171,9 @@ Those signatures are then frozen and evaluated on unseen chains.
 │   ├── pythia70m_probe.json
 │   ├── README.md
 │   ├── example_output.json
-│   └── final_run/
-│       ├── summary.json
-│       ├── environment.json
-│       ├── Qwen__Qwen2.5-1.5B-Instruct.json
-│       ├── Qwen__Qwen2.5-3B-Instruct.json
-│       ├── *.log
-│       └── godel_probe_used.py
+│   ├── final_run_v3/   # corrected 150-chain main result
+│   ├── final_run_v2/   # corrected 30-chain pilot
+│   └── final_run/      # original v1 run (superseded/confounded)
 └── archive/            # original / failed research attempts
 ```
 
@@ -214,18 +212,21 @@ Cross-model run:
 godel-probe   --models     EleutherAI/pythia-70m     EleutherAI/pythia-160m     gpt2   --pairs 40   --out results/cross_model.json
 ```
 
-Main configuration (de-confounded prompts, GPU):
+Main configuration used for the corrected final run (run each model separately
+if GPU memory is limited):
 
 ```bash
 godel-probe \
-  --models Qwen/Qwen2.5-3B-Instruct \
-  --pairs 30 \
+  --models Qwen/Qwen2.5-1.5B-Instruct Qwen/Qwen2.5-3B-Instruct \
+  --pairs 150 \
   --min-correct-pairs 8 \
   --near-gcd 0.80 \
   --seed 7 \
   --device cuda \
+  --dtype auto \
+  --distractors 2 \
   --permutations 1000 \
-  --out results/qwen25_3b.json
+  --out results/qwen25_v02.json
 ```
 
 Reproduce the v1 (confounded) configuration: add `--distractors 0 --no-shuffle --dtype float16`.
@@ -298,92 +299,84 @@ within each discovery chain, rebuilding the signatures, and recomputing the
 statistic on the unchanged test set (default 1,000 permutations). The JSON
 reports the observed value, null mean / SD / 95th percentile, a one-sided
 p-value `(1 + #null ≥ observed) / (1 + N)`, and the effect over the null.
-With only ~15 test chains, p-values are coarse; treat this as a first check,
-not a definitive test.
+The final run used 26 and 30 held-out matched chains. With 1,000 permutations,
+the smallest reportable p-value is `1/1001 ≈ 0.000999`.
 
 `results/example_output.json` shows the schema only and is deliberately labeled
 as illustrative rather than experimental evidence.
 
 
 
-## v1 executed result (confounded prompts — superseded)
+## Corrected v0.2 executed result
 
-> This run used the v1 prompts, which contain the positional shortcut described
-> at the top of this README. It is kept as a record, not as a valid result.
-
-A final GPU run was performed with the exact probe preserved in
-`results/final_run/godel_probe_used.py`.
+The main result is the 150-chain rerun under the de-confounded prompt format.
+The exact artifacts are committed under `results/final_run_v3/`.
 
 Environment:
 
 ```text
 Python:       3.13.15
 PyTorch:      2.11.0+cu128
-Transformers: 5.17.0
-GPU:          NVIDIA RTX PRO 6000 Blackwell Server Edition
+Transformers: 5.16.1
+GPU:          Tesla T4
+dtype:        bfloat16
 seed:         7
-pairs:        30
+pairs:        150
+distractors:  2
 near-GCD:     0.80
+permutations: 1000
 ```
 
-Two frozen instruction-tuned models were attempted:
+Shortcut diagnostics on the 300 generated prompts:
 
-| Model | Paired-correct chains | Result |
-|---|---:|---|
-| `Qwen/Qwen2.5-1.5B-Instruct` | 0 / 30 | stopped as `too_weak` |
-| `Qwen/Qwen2.5-3B-Instruct` | 30 / 30 | reached held-out structural evaluation |
-
-### Qwen2.5-3B-Instruct
-
-The 3B model passed the fairness filter on all 30 chains, so the experiment
-split the retained chains into discovery and held-out test sets and evaluated
-the frozen signatures.
-
-Exact-GCD test:
-
-| Signature | Test on two-hop | Test on one-hop |
+| Heuristic | Accuracy | Relevant random baseline |
 |---|---:|---:|
-| two-hop discovery signature | 1.000 | 1.000 |
-| one-hop discovery signature | 1.000 | 1.000 |
+| target of last fact line | 0.2733 | 0.25 |
+| target of first fact line | 0.2467 | 0.25 |
+| first chain end | 0.5133 | 0.50 |
+| last chain end | 0.4867 | 0.50 |
 
-The discovery GCDs contained 1,490 factors unique to the two-hop discovery GCD
-and 1,463 unique to the one-hop discovery GCD. However, those signatures fired
-on **100% of both held-out classes**. In other words, being unique to one
-*discovery GCD* did not make a factor signature class-specific on unseen
-computations.
+The deterministic `one_step_from_start` heuristic is 1.0 on the one-hop class
+and 0.0 on the two-hop class by construction; it is included as a sanity check,
+not as a class-blind shortcut.
 
-Near-GCD test at threshold `0.80`:
+Main permutation result:
 
-| Signature | Same-class test rate | Other-class test rate |
-|---|---:|---:|
-| two-hop near-GCD | 1.000 | 1.000 |
-| one-hop near-GCD | 1.000 | 0.867 |
+| Model | Paired-correct | Test chains | Observed | Null mean | Null 95th | p (one-sided) |
+|---|---:|---:|---:|---:|---:|---:|
+| Qwen2.5-1.5B-Instruct | 51/150 | 26 | **0.75** | 0.4997 | 0.50 | **0.000999** |
+| Qwen2.5-3B-Instruct | 60/150 | 30 | **1.00** | 0.5004 | 0.50 | **0.000999** |
 
-Using the same "contains any signature factor" rule, the near-GCD sets also failed to produce a useful held-out separator.
-The one-hop signature showed only weak asymmetry, while the two-hop signature
-appeared in every test example from both classes.
+The old exact/"any factor" rule still fired on both classes (1.0/1.0) and is
+therefore not useful as a discriminator. The corrected conclusion comes from
+the graded paired score plus the permutation null, not from that legacy rule.
 
-### Conclusion
+### Interpretation
 
-**The current structural representation did not distinguish one-hop from
-two-hop computations on held-out chains.**
+Within the correctness-conditioned matched-chain population used here, the
+graded structural signature separated held-out one-hop and two-hop prompts
+above the shuffled-label null in **both tested Qwen sizes**. The effect was
+partial for 1.5B (0.75 paired accuracy) and perfect on this held-out sample for
+3B (1.00).
 
-This is a negative result, but it is informative: the experiment successfully
-reached held-out evaluation after controlling for model correctness, and the
-result shows that top-attention edges plus two-layer ancestry paths are too
-shared across these matched prompts to act as class-specific signatures under
-the present GCD rules.
+This does **not** show that attention edges and two-layer ancestry paths are a
+complete causal description of reasoning, nor does it establish generalization
+to other tasks, model families, seeds, or prompt distributions. It shows that
+this particular structural encoding contains a reproducible class-associated
+signal under the tested setup after the obvious positional shortcut and dtype
+artifact were addressed.
 
-Because of the prompt shortcut found later, it is also possible that the
-model solved both forms the same way (copying the last letter), which would
-by itself make the structures indistinguishable.
+See `results/FINAL_RESULT.md` for the concise result statement and
+`results/EXPERIMENT_HISTORY.md` for the full progression from failed/confounded
+runs to the corrected experiment.
 
-The result does **not** show that the model has no structural difference between
-one-hop and two-hop reasoning. It only shows that this particular factorization
-and signature test did not isolate one.
+## v1 executed result (superseded)
 
-The complete JSON outputs, logs, environment metadata, and exact script used for
-the run are committed under `results/final_run/`.
+The original v1 GPU run is kept in `results/final_run/` for auditability. It
+used prompts where the answer was always the target of the last fact line and
+used unsafe float16 loading. Its headline numbers (1.5B: 0/30; 3B: 30/30) are
+**not treated as evidence** about multi-hop computation. The review that found
+those issues motivated v0.2.
 
 ## Earlier executed experiments
 

@@ -147,9 +147,63 @@ and hard errors on non-finite values. With the new prompts, Pythia-70M passes
 only 1/20 chains (6/60 at a larger sample), consistent with the v1 passes
 relying on the shortcut.
 
-## What still needs to be run
+## 7. Corrected v0.2 pilot — 30 chains
 
-**A rerun of the main experiment (Qwen2.5-3B-Instruct and 1.5B-Instruct)
-with the de-confounded v0.2 prompts is pending.** Until then, no held-out
-structural result from this repository should be treated as evidence about
-one-hop vs two-hop computation.
+The first rerun after fixing the prompt shortcut and dtype handling used the
+v0.2 prompt generator with two distractor facts, shuffled fact order, and a
+1,000-permutation null.
+
+- Qwen2.5-1.5B-Instruct: 10/30 paired-correct, 5 held-out chains,
+  observed paired accuracy 1.00, one-sided `p = 0.0609`.
+- Qwen2.5-3B-Instruct: 13/30 paired-correct, 7 held-out chains,
+  observed paired accuracy 1.00, one-sided `p = 0.0659`.
+
+The shortcut checks were near their random baselines, but the held-out sets were
+too small for a stable conclusion. The pilot artifacts are preserved in
+`final_run_v2/` and motivated a larger rerun without changing the analysis.
+
+## 8. Corrected v0.2 final rerun — 150 chains
+
+The same corrected analysis was rerun with 150 chains on a Tesla T4 using
+bfloat16, seed 7, two distractors, shuffled fact order, near-GCD threshold 0.80,
+and 1,000 permutations.
+
+Shortcut diagnostics across 300 prompts:
+
+```text
+last fact target:  0.2733  (random fact-line baseline 0.25)
+first fact target: 0.2467  (random fact-line baseline 0.25)
+first chain end:    0.5133  (random chain-end baseline 0.50)
+last chain end:     0.4867  (random chain-end baseline 0.50)
+```
+
+Model results:
+
+```text
+Qwen2.5-1.5B-Instruct
+  paired-correct: 51/150
+  discovery/test: 25/26
+  paired held-out accuracy: 0.75
+  null mean: 0.4996923
+  p(one-sided): 0.000999
+
+Qwen2.5-3B-Instruct
+  paired-correct: 60/150
+  discovery/test: 30/30
+  paired held-out accuracy: 1.00
+  null mean: 0.5003667
+  p(one-sided): 0.000999
+```
+
+The old exact-GCD "any factor" rule still fired on both classes and remains a
+non-discriminator. The corrected main result therefore relies on the graded
+paired score plus the within-discovery-pair label-permutation null.
+
+With 1,000 permutations, `0.000999 = 1/1001` is the minimum p-value reportable
+under the add-one correction implemented by the code; no sampled null
+permutation reached the observed statistic in either model.
+
+The conclusion is deliberately limited: the structural representation contains
+a class-associated held-out signal in this correctness-conditioned setup. It is
+not claimed to recover a complete causal mechanism or to generalize beyond the
+tested task, seed, and Qwen2.5 model sizes.

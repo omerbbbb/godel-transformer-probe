@@ -1,0 +1,14 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+=== Qwen/Qwen2.5-1.5B-Instruct ===
+Loading weights:   0%|          | 0/338 [00:00<?, ?it/s]Loading weights: 100%|██████████| 338/338 [00:00<00:00, 16409.22it/s]
+shortcut check (heuristic accuracy): {'last_fact_target': 0.3, 'first_fact_target': 0.2333, 'last_fact_source': 0.0, 'first_chain_end': 0.5333, 'last_chain_end': 0.4667, 'one_step_from_start': 0.5}
+paired-correct chains: 10/30
+  extracted 10/20
+  extracted 20/20
+exact gcd test: {'two_on_two': 1.0, 'two_on_one': 1.0, 'one_on_one': 1.0, 'one_on_two': 1.0, 'gcd_one_factors': 32966, 'gcd_two_factors': 32776, 'unique_one_factors': 520, 'unique_two_factors': 330}
+near-gcd test: {'threshold': 0.8, 'two_on_two': 1.0, 'two_on_one': 0.8, 'one_on_one': 1.0, 'one_on_two': 1.0, 'near_one_factors': 62, 'near_two_factors': 59}
+permutation test: {'observed': 1.0, 'null_mean': 0.48579999999999995, 'null_95th': 1.0, 'p_value_one_sided': 0.060939060939060936, 'effect_z': 2.1598492234967512}
+
+Saved: /content/godel_final_run_v2/Qwen__Qwen2.5-1.5B-Instruct.json

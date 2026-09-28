@@ -1,0 +1,138 @@
+[
+  {
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "status": "ok",
+    "paired_correct": 10,
+    "discover_chains": 5,
+    "test_chains": 5,
+    "config": {
+      "pairs": 30,
+      "seed": 7,
+      "distractors": 2,
+      "shuffle": true,
+      "topk": 1,
+      "near_gcd": 0.8,
+      "min_correct_pairs": 8,
+      "permutations": 1000
+    },
+    "environment": {
+      "python": "3.13.15",
+      "torch": "2.11.0+cu128",
+      "transformers": "5.16.1",
+      "device": "cuda",
+      "dtype": "bfloat16",
+      "gpu": "Tesla T4"
+    },
+    "shortcut_check": {
+      "n_prompts": 60,
+      "n_facts_per_prompt": 4,
+      "chance_uniform_letter": 0.0417,
+      "chance_uniform_fact_line": 0.25,
+      "chance_uniform_chain_end": 0.5,
+      "heuristics": {
+        "last_fact_target": {
+          "all": 0.3,
+          "one": 0.3,
+          "two": 0.3
+        },
+        "first_fact_target": {
+          "all": 0.2333,
+          "one": 0.2333,
+          "two": 0.2333
+        },
+        "last_fact_source": {
+          "all": 0.0,
+          "one": 0.0,
+          "two": 0.0
+        },
+        "first_chain_end": {
+          "all": 0.5333,
+          "one": 0.5333,
+          "two": 0.5333
+        },
+        "last_chain_end": {
+          "all": 0.4667,
+          "one": 0.4667,
+          "two": 0.4667
+        },
+        "one_step_from_start": {
+          "all": 0.5,
+          "one": 1.0,
+          "two": 0.0
+        }
+      }
+    },
+    "permutation_test": {
+      "status": "ok",
+      "statistic": "paired held-out accuracy (two-hop score > matched one-hop score; chance 0.5)",
+      "threshold": 0.8,
+      "discover_chains": 5,
+      "test_chains": 5,
+      "candidate_factors": 16075,
+      "near_two_factors": 117,
+      "near_one_factors": 120,
+      "observed": 1.0,
+      "permutations": 1000,
+      "null_mean": 0.48579999999999995,
+      "null_sd": 0.23807217393051208,
+      "null_95th": 1.0,
+      "p_value_one_sided": 0.060939060939060936,
+      "effect_over_null": 0.5142,
+      "effect_z": 2.1598492234967512
+    },
+    "exact_any_factor_rule": {
+      "two_on_two": 1.0,
+      "two_on_one": 1.0,
+      "one_on_one": 1.0,
+      "one_on_two": 1.0,
+      "gcd_one_factors": 32966,
+      "gcd_two_factors": 32776,
+      "unique_one_factors": 520,
+      "unique_two_factors": 330
+    },
+    "near_any_factor_rule": {
+      "threshold": 0.8,
+      "two_on_two": 1.0,
+      "two_on_one": 0.8,
+      "one_on_one": 1.0,
+      "one_on_two": 1.0,
+      "near_one_factors": 62,
+      "near_two_factors": 59
+    },
+    "prime_examples": [
+      {
+        "prime": 41687,
+        "factor": "('E', 15, 1, 33, 13)"
+      },
+      {
+        "prime": 88001,
+        "factor": "('E', 20, 9, 33, 19)"
+      },
+      {
+        "prime": 99577,
+        "factor": "('E', 22, 7, 33, 19)"
+      },
+      {
+        "prime": 136447,
+        "factor": "('E', 3, 8, 33, 13)"
+      },
+      {
+        "prime": 150169,
+        "factor": "('E', 6, 1, 33, 0)"
+      },
+      {
+        "prime": 174481,
+        "factor": "('E', 9, 8, 33, 0)"
+      },
+      {
+        "prime": 314359,
+        "factor": "('P', 10, 5, 33, 33, 8, 0)"
+      },
+      {
+        "prime": 510943,
+        "factor": "('P', 15, 1, 33, 13, 0, 0)"
+      }
+    ],
+    "note": "E=(local attention edge); P=(two-layer composed ancestry path). No task labels or token identities enter the factor definition."
+  }
+]

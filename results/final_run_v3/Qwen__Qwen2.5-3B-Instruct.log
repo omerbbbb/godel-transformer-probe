@@ -1,0 +1,24 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+=== Qwen/Qwen2.5-3B-Instruct ===
+Loading weights:   0%|          | 0/434 [00:00<?, ?it/s]Loading weights:  14%|█▍        | 61/434 [00:00<00:00, 591.90it/s]Loading weights:  28%|██▊       | 121/434 [00:00<00:00, 562.62it/s]Loading weights: 100%|██████████| 434/434 [00:00<00:00, 1510.07it/s]
+shortcut check (heuristic accuracy): {'last_fact_target': 0.2733, 'first_fact_target': 0.2467, 'last_fact_source': 0.0, 'first_chain_end': 0.5133, 'last_chain_end': 0.4867, 'one_step_from_start': 0.5}
+paired-correct chains: 60/150
+  extracted 10/120
+  extracted 20/120
+  extracted 30/120
+  extracted 40/120
+  extracted 50/120
+  extracted 60/120
+  extracted 70/120
+  extracted 80/120
+  extracted 90/120
+  extracted 100/120
+  extracted 110/120
+  extracted 120/120
+exact gcd test: {'two_on_two': 1.0, 'two_on_one': 1.0, 'one_on_one': 1.0, 'one_on_two': 1.0, 'gcd_one_factors': 70364, 'gcd_two_factors': 70245, 'unique_one_factors': 956, 'unique_two_factors': 837}
+near-gcd test: {'threshold': 0.8, 'two_on_two': 1.0, 'two_on_one': 0.36666666666666664, 'one_on_one': 0.8333333333333334, 'one_on_two': 0.3333333333333333, 'near_one_factors': 24, 'near_two_factors': 3}
+permutation test: {'observed': 1.0, 'null_mean': 0.5003666666666666, 'null_95th': 0.5, 'p_value_one_sided': 0.000999000999000999, 'effect_z': 60.748967999150224}
+
+Saved: /content/godel_final_run_v3/Qwen__Qwen2.5-3B-Instruct.json

@@ -1,0 +1,22 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+
+=== Qwen/Qwen2.5-1.5B-Instruct ===
+Loading weights:   0%|          | 0/338 [00:00<?, ?it/s]Loading weights:  17%|█▋        | 56/338 [00:00<00:00, 535.63it/s]Loading weights:  33%|███▎      | 110/338 [00:00<00:00, 370.13it/s]Loading weights:  48%|████▊     | 161/338 [00:00<00:00, 342.12it/s]Loading weights:  69%|██████▊   | 232/338 [00:00<00:00, 358.39it/s]Loading weights: 100%|██████████| 338/338 [00:00<00:00, 527.39it/s]
+shortcut check (heuristic accuracy): {'last_fact_target': 0.2733, 'first_fact_target': 0.2467, 'last_fact_source': 0.0, 'first_chain_end': 0.5133, 'last_chain_end': 0.4867, 'one_step_from_start': 0.5}
+paired-correct chains: 51/150
+  extracted 10/102
+  extracted 20/102
+  extracted 30/102
+  extracted 40/102
+  extracted 50/102
+  extracted 60/102
+  extracted 70/102
+  extracted 80/102
+  extracted 90/102
+  extracted 100/102
+exact gcd test: {'two_on_two': 1.0, 'two_on_one': 1.0, 'one_on_one': 1.0, 'one_on_two': 1.0, 'gcd_one_factors': 28082, 'gcd_two_factors': 27914, 'unique_one_factors': 376, 'unique_two_factors': 208}
+near-gcd test: {'threshold': 0.8, 'two_on_two': 0.8461538461538461, 'two_on_one': 0.2692307692307692, 'one_on_one': 0.0, 'one_on_two': 0.0, 'near_one_factors': 0, 'near_two_factors': 3}
+permutation test: {'observed': 0.75, 'null_mean': 0.49969230769230766, 'null_95th': 0.5, 'p_value_one_sided': 0.000999000999000999, 'effect_z': 25.738000984821944}
+
+Saved: /content/godel_final_run_v3/Qwen__Qwen2.5-1.5B-Instruct.json
