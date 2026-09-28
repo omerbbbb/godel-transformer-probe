@@ -15,6 +15,11 @@ Null distribution: within each discovery chain, the one/two labels are
 swapped at random (preserving the matched-pair structure), the near-GCD
 signatures are rebuilt, and the same held-out statistic is recomputed on the
 unchanged test set.
+
+Caveat: with small discovery sets and a strict threshold the null can be
+near-degenerate (most permuted signatures are empty, so null ≈ 0.5 with a
+tiny SD). The p-value then mainly indicates that the real labels produce a
+signature pointing the right way, and ``effect_z`` is not meaningful.
 """
 from __future__ import annotations
 
@@ -121,5 +126,10 @@ def permutation_test(
         "null_95th": float(np.quantile(null, 0.95)),
         "p_value_one_sided": p_value,
         "effect_over_null": observed - float(null.mean()),
+        # effect_z is kept for backward compatibility with committed result
+        # JSONs. It is NOT a meaningful effect size when the null is
+        # near-degenerate (e.g. shuffled labels rarely yield any near-GCD
+        # factors, so the null collapses to ~0.5 with a tiny SD). Report
+        # observed, null_mean, null_95th and the p-value instead.
         "effect_z": (observed - float(null.mean())) / sd if sd > 0 else None,
     }
