@@ -11,6 +11,55 @@ factors and works directly with the implied prime factorization.
 > **No training or fine-tuning is performed.** The probe only inspects frozen
 > pretrained models.
 
+## Status: confound found in v1, fixed in v0.2 — rerun pending
+
+A review of the v1 result (below) found a **positional shortcut** in the
+prompts. In v1 every prompt listed the facts as `A -> B` then `B -> C`, so the
+correct answer was *always the last letter of the last fact line*. A model can
+pass the "paired-correct" filter without following the arrows at all.
+
+Evidence:
+
+- the trivial heuristic "answer = target of the last fact line" scores
+  **100%** on the v1 prompts (`godel-shortcut-check --distractors 0 --no-shuffle`);
+- Pythia-70M answered 21/40 v1 prompts correctly, but only 4/40 when the two
+  fact lines were simply swapped.
+
+So the v1 result (Qwen2.5-3B solving 30/30 matched chains, with signatures
+that did not separate one-hop from two-hop) cannot be read as evidence about
+multi-hop computation: the model may have been copying the last letter in
+both conditions.
+
+Fixes in v0.2:
+
+1. **De-confounded prompts.** Each prompt adds irrelevant distractor facts
+   (default 2, forming a disjoint decoy chain with the same format and
+   vocabulary) and the fact lines are shuffled in a seeded random order per
+   chain. The matched one-hop / two-hop prompts still share identical fact
+   lines and differ only in the start letter.
+2. **Shortcut check.** Every run reports the accuracy of trivial heuristics
+   (last/first fact line, first/last chain end, one step from start) next to
+   their chance levels. With the new prompts, positional heuristics sit at
+   chance (≈25% for a random fact line, ≈50% for a random chain end).
+3. **Permutation null.** The old rule ("a signature fires if *any* of its
+   factors is present") fires on nearly everything once a signature has
+   hundreds of factors. It is kept for comparison, but the main statistic is
+   now a graded score with a shuffled-label null (see *Statistics* below).
+4. **dtype.** v1 loaded models in float16 on GPU. Qwen2.5-class models can
+   overflow in float16, and NaN log-probabilities were silently counted as
+   wrong answers — a likely explanation for Qwen2.5-1.5B scoring 0/30. The
+   dtype is now configurable (`--dtype`, default `auto` = bfloat16 on GPUs
+   that support it, float32 otherwise) and non-finite scores or attentions
+   now raise an error instead of being counted as incorrect. CPU checks
+   (v1 prompts, seed 7): Qwen2.5-1.5B-Instruct in float32 solved **10/10**
+   matched chains, and Pythia-70M in float16 produced non-finite
+   log-probabilities for every candidate, which the v1 code would have
+   counted as 24 wrong answers. So the earlier `0/30` (and probably Pythia's
+   `0/20`) looks like a numerical artifact, not model weakness.
+
+**A rerun of the main experiment with the de-confounded prompts is pending.**
+The v1 artifacts are kept unchanged in `results/final_run/` as a record.
+
 ## Research question
 
 If a model solves the same underlying arrow chain in a one-hop and a two-hop
@@ -35,6 +84,22 @@ the code creates two matched prompts:
 two-hop: start at A -> answer C
 one-hop: start at B -> answer C
 ```
+
+Since v0.2 each prompt also contains distractor facts (a disjoint decoy
+chain), and all fact lines are shuffled per chain, e.g.
+
+```text
+Follow the arrows until the chain ends. Return only the final capital letter.
+Q -> M
+K -> Q
+T -> W
+W -> F
+Start: K
+Final:
+```
+
+(answer `M`; `T -> W -> F` is a decoy). `--distractors 0 --no-shuffle`
+reproduces the original v1 prompts exactly.
 
 A chain is kept only when the **same frozen model answers both versions
 correctly**. This avoids comparing a successful computation with a failed one.
@@ -89,7 +154,9 @@ Those signatures are then frozen and evaluated on unseen chains.
 │   ├── cli.py          # command-line interface
 │   ├── experiment.py   # model loading, scoring and experiment loop
 │   ├── factors.py      # structural factors, primes, GCD and prevalence
-│   └── prompts.py      # matched one-hop / two-hop dataset
+│   ├── prompts.py      # matched one-hop / two-hop dataset (+ distractors, shuffling)
+│   ├── shortcuts.py    # trivial-heuristic accuracy ("shortcut check")
+│   └── stats.py        # graded signature score + permutation null
 ├── tests/              # deterministic unit tests
 ├── notebooks/
 │   ├── godel_forward_trace_v3.ipynb
@@ -117,7 +184,7 @@ Those signatures are then frozen and evaluated on unseen chains.
 Python 3.10+ is recommended.
 
 ```bash
-git clone <YOUR-REPO-URL>
+git clone https://github.com/omerbbbb/godel-transformer-probe.git
 cd godel-transformer-probe
 
 python -m venv .venv
@@ -147,7 +214,7 @@ Cross-model run:
 godel-probe   --models     EleutherAI/pythia-70m     EleutherAI/pythia-160m     gpt2   --pairs 40   --out results/cross_model.json
 ```
 
-Reproduce the final successful configuration:
+Main configuration (de-confounded prompts, GPU):
 
 ```bash
 godel-probe \
@@ -157,7 +224,17 @@ godel-probe \
   --near-gcd 0.80 \
   --seed 7 \
   --device cuda \
-  --out results/qwen25_3b_reproduction.json
+  --permutations 1000 \
+  --out results/qwen25_3b.json
+```
+
+Reproduce the v1 (confounded) configuration: add `--distractors 0 --no-shuffle --dtype float16`.
+
+Check trivial heuristics on the prompt set without loading a model:
+
+```bash
+godel-shortcut-check --pairs 200                            # v0.2 prompts
+godel-shortcut-check --pairs 200 --distractors 0 --no-shuffle   # v1 prompts
 ```
 
 You can also run:
@@ -177,6 +254,10 @@ python -m godel_probe --models gpt2 --pairs 20
 | `--near-gcd` | Near-GCD prevalence threshold | `0.80` |
 | `--seed` | Dataset/split random seed | `7` |
 | `--device` | PyTorch device | `cpu` |
+| `--dtype` | `auto`, `float32`, `bfloat16`, `float16` (`auto` = float32 on CPU, bfloat16 on CUDA if supported) | `auto` |
+| `--distractors` | Irrelevant arrow facts per prompt (0 = v1 prompts) | `2` |
+| `--no-shuffle` | Keep facts in chain order | off |
+| `--permutations` | Shuffled-label permutations for the null baseline | `1000` |
 | `--out` | JSON output path | `godel_probe_results.json` |
 
 ## Output
@@ -187,21 +268,48 @@ Each model returns one of three statuses:
 - `too_weak` — too few chains were solved in both forms;
 - `error` — loading or attention extraction failed.
 
-For successful runs, the JSON contains:
+Every result records `config`, `environment` (versions, device, dtype, GPU)
+and `shortcut_check`. For successful runs, the JSON also contains:
 
 - number of paired-correct chains;
 - discovery/test split sizes;
-- exact-GCD test rates;
-- near-GCD test rates;
+- `permutation_test` — the main statistic with its null distribution;
+- `exact_any_factor_rule` / `near_any_factor_rule` — the v1 "any factor" rates, kept for comparison;
 - number of class-specific factors;
 - a few example prime assignments.
+
+## Statistics
+
+Signatures are built on the discovery chains as before (near-GCD: factors
+present in ≥ threshold of one class and ≤ 1 − threshold of the other). Each
+held-out prompt then gets a graded score
+
+```text
+score(x) = fraction of two-hop signature factors present in x
+         − fraction of one-hop signature factors present in x
+```
+
+The statistic is the **paired held-out accuracy**: the fraction of test
+chains whose two-hop prompt scores higher than its matched one-hop prompt
+(ties count ½; chance = 0.5).
+
+The null distribution comes from swapping the one/two labels at random
+within each discovery chain, rebuilding the signatures, and recomputing the
+statistic on the unchanged test set (default 1,000 permutations). The JSON
+reports the observed value, null mean / SD / 95th percentile, a one-sided
+p-value `(1 + #null ≥ observed) / (1 + N)`, and the effect over the null.
+With only ~15 test chains, p-values are coarse; treat this as a first check,
+not a definitive test.
 
 `results/example_output.json` shows the schema only and is deliberately labeled
 as illustrative rather than experimental evidence.
 
 
 
-## Final executed result
+## v1 executed result (confounded prompts — superseded)
+
+> This run used the v1 prompts, which contain the positional shortcut described
+> at the top of this README. It is kept as a record, not as a valid result.
 
 A final GPU run was performed with the exact probe preserved in
 `results/final_run/godel_probe_used.py`.
@@ -266,6 +374,10 @@ result shows that top-attention edges plus two-layer ancestry paths are too
 shared across these matched prompts to act as class-specific signatures under
 the present GCD rules.
 
+Because of the prompt shortcut found later, it is also possible that the
+model solved both forms the same way (copying the last letter), which would
+by itself make the structures indistinguishable.
+
 The result does **not** show that the model has no structural difference between
 one-hop and two-hop reasoning. It only shows that this particular factorization
 and signature test did not isolate one.
@@ -288,6 +400,10 @@ status: too_weak
 ```
 
 so it correctly stopped before structural evaluation.
+
+(Later re-check: this script loaded the model with `torch_dtype="auto"`;
+Pythia-70M in float16 yields non-finite scores, and the same v1 prompts in
+float32 give 7/20 paired-correct. See `results/EXPERIMENT_HISTORY.md`.)
 
 ### Earlier Pythia forward trace
 

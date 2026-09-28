@@ -27,6 +27,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--near-gcd", type=float, default=0.80)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--device", default="cpu")
+    parser.add_argument(
+        "--dtype",
+        default="auto",
+        choices=["auto", "float32", "bfloat16", "float16"],
+        help="auto = float32 on CPU, bfloat16 on CUDA if supported (else float32)",
+    )
+    parser.add_argument(
+        "--distractors", type=int, default=2,
+        help="irrelevant arrow facts added to every prompt (0 = original prompts)",
+    )
+    parser.add_argument(
+        "--no-shuffle", action="store_true",
+        help="keep facts in chain order (with --distractors 0: original confounded prompts)",
+    )
+    parser.add_argument(
+        "--permutations", type=int, default=1000,
+        help="shuffled-label permutations for the null baseline",
+    )
     parser.add_argument("--out", default="godel_probe_results.json")
     return parser
 

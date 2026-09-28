@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import platform
 import random
+from collections import Counter
 from typing import Any
 
 import torch
+import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .factors import (
@@ -13,12 +16,49 @@ from .factors import (
     structural_factors,
 )
 from .prompts import LETTERS, make_pairs
+from .shortcuts import shortcut_report
+from .stats import permutation_test
 
 
-def load_model(name: str, device: torch.device):
+_DTYPES = {
+    "float32": torch.float32,
+    "bfloat16": torch.bfloat16,
+    "float16": torch.float16,
+}
+
+
+def resolve_dtype(name: str, device: torch.device) -> torch.dtype:
+    """Pick the model dtype.
+
+    ``auto`` = float32 on CPU; bfloat16 on CUDA when supported, else float32.
+    float16 is available but not the default: Qwen2.5-class models can
+    overflow in float16, which turns logits into NaN (a suspected cause of
+    the earlier 0/30 result for Qwen2.5-1.5B-Instruct).
+    """
+    if name != "auto":
+        return _DTYPES[name]
+    if device.type == "cuda":
+        return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
+    return torch.float32
+
+
+def environment(device: torch.device, dtype: torch.dtype) -> dict[str, Any]:
+    env = {
+        "python": platform.python_version(),
+        "torch": torch.__version__,
+        "transformers": transformers.__version__,
+        "device": str(device),
+        "dtype": str(dtype).replace("torch.", ""),
+    }
+    if device.type == "cuda":
+        env["gpu"] = torch.cuda.get_device_name(0)
+    return env
+
+
+def load_model(name: str, device: torch.device, dtype: torch.dtype = torch.float32):
     """Load a frozen causal language model with eager attention when supported."""
     tokenizer = AutoTokenizer.from_pretrained(name)
-    kwargs = {"torch_dtype": (torch.float16 if device.type == "cuda" else torch.float32)}
+    kwargs = {"torch_dtype": dtype}
 
     try:
         model = AutoModelForCausalLM.from_pretrained(
@@ -66,6 +106,13 @@ def answer_correct(model, tokenizer, row, device, candidates=LETTERS):
         )
         for candidate in candidates
     }
+    bad = [c for c, v in scores.items() if not torch.isfinite(torch.tensor(v))]
+    if bad:
+        # Never silently count NaN/inf scores as "incorrect".
+        raise FloatingPointError(
+            f"non-finite log-probabilities for {len(bad)} candidates; "
+            "try --dtype float32 or bfloat16"
+        )
     prediction = max(scores, key=scores.get)
     return prediction == row["answer"], prediction, scores[row["answer"]]
 
@@ -89,6 +136,8 @@ def get_attentions(model, tokenizer, prompt: str, device):
     attentions = [
         tensor[0].detach().float().cpu() for tensor in output.attentions
     ]
+    if not all(torch.isfinite(a).all() for a in attentions):
+        raise FloatingPointError("non-finite attention values; try --dtype float32")
     return attentions, encoded.input_ids[0].cpu()
 
 
@@ -103,17 +152,37 @@ def run_model(name: str, args) -> dict[str, Any]:
     device = torch.device(args.device)
     print(f"\n=== {name} ===")
 
-    tokenizer, model = load_model(name, device)
-    rows = make_pairs(args.pairs, args.seed)
+    dtype = resolve_dtype(getattr(args, "dtype", "auto"), device)
+    tokenizer, model = load_model(name, device, dtype)
+    rows = make_pairs(
+        args.pairs,
+        args.seed,
+        distractors=getattr(args, "distractors", 2),
+        shuffle=not getattr(args, "no_shuffle", False),
+    )
+    shortcuts = shortcut_report(rows)
+    env = environment(device, dtype)
+    config = {
+        "pairs": args.pairs,
+        "seed": args.seed,
+        "distractors": getattr(args, "distractors", 2),
+        "shuffle": not getattr(args, "no_shuffle", False),
+        "topk": args.topk,
+        "near_gcd": args.near_gcd,
+        "min_correct_pairs": args.min_correct_pairs,
+        "permutations": getattr(args, "permutations", 1000),
+    }
+    print("shortcut check (heuristic accuracy):",
+          {k: v["all"] for k, v in shortcuts["heuristics"].items()})
 
     # Fairness filter:
     # A chain is retained only when the frozen model solves BOTH matched forms.
-    by_triple: dict[tuple[str, str, str], list[tuple[int, dict]]] = {}
+    by_chain: dict[int, list[tuple[int, dict]]] = {}
     for i, row in enumerate(rows):
-        by_triple.setdefault(tuple(row["triple"]), []).append((i, row))
+        by_chain.setdefault(row["chain"], []).append((i, row))
 
     kept_indices: list[int] = []
-    for pair in by_triple.values():
+    for pair in by_chain.values():
         pair_ok = []
         for _, row in pair:
             ok, _, _ = answer_correct(model, tokenizer, row, device)
@@ -129,6 +198,9 @@ def run_model(name: str, args) -> dict[str, Any]:
             "model": name,
             "status": "too_weak",
             "paired_correct": paired_correct,
+            "config": config,
+            "environment": env,
+            "shortcut_check": shortcuts,
         }
 
     selected = [(i, rows[i]) for i in kept_indices]
@@ -138,7 +210,7 @@ def run_model(name: str, args) -> dict[str, Any]:
     triples = []
     seen = set()
     for _, row in selected:
-        triple = tuple(row["triple"])
+        triple = row["chain"]  # chain id (a letter triple can repeat across chains)
         if triple not in seen:
             seen.add(triple)
             triples.append(triple)
@@ -153,7 +225,7 @@ def run_model(name: str, args) -> dict[str, Any]:
         records.append(
             {
                 "kind": row["kind"],
-                "triple": tuple(row["triple"]),
+                "triple": row["chain"],
                 "factors": structural_factors(attentions, args.topk),
             }
         )
@@ -223,6 +295,21 @@ def run_model(name: str, args) -> dict[str, Any]:
         "near_two_factors": len(near_two),
     }
 
+    def pairs_for(pool):
+        by_chain: dict[tuple, dict[str, Counter]] = {}
+        for record in records:
+            if record["triple"] in pool:
+                by_chain.setdefault(record["triple"], {})[record["kind"]] = record["factors"]
+        return [(v["two"], v["one"]) for _, v in sorted(by_chain.items())]
+
+    perm = permutation_test(
+        pairs_for(discover),
+        pairs_for(test),
+        threshold=threshold,
+        permutations=getattr(args, "permutations", 1000),
+        seed=args.seed,
+    )
+
     sample_two = sorted(list(near_two or unique_two), key=repr)[:8]
     prime_examples = [
         {"prime": prime_map[factor], "factor": repr(factor)}
@@ -231,6 +318,8 @@ def run_model(name: str, args) -> dict[str, Any]:
 
     print("exact gcd test:", exact)
     print("near-gcd test:", near)
+    print("permutation test:", {k: perm.get(k) for k in (
+        "observed", "null_mean", "null_95th", "p_value_one_sided", "effect_z")})
 
     return {
         "model": name,
@@ -238,8 +327,12 @@ def run_model(name: str, args) -> dict[str, Any]:
         "paired_correct": paired_correct,
         "discover_chains": len(discover),
         "test_chains": len(test),
-        "exact": exact,
-        "near": near,
+        "config": config,
+        "environment": env,
+        "shortcut_check": shortcuts,
+        "permutation_test": perm,
+        "exact_any_factor_rule": exact,
+        "near_any_factor_rule": near,
         "prime_examples": prime_examples,
         "note": (
             "E=(local attention edge); P=(two-layer composed ancestry path). "

@@ -1,6 +1,10 @@
 
 # Results
 
+> The `final_run/` results use the v1 prompts, which contain a positional
+> shortcut (see the top-level README). A rerun with the de-confounded v0.2
+> prompts is pending; its outputs will go in `final_run_v2/`.
+
 ## Final run
 
 `final_run/` contains the complete output bundle from the final GPU experiment.

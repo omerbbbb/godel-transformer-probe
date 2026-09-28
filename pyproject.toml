@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "godel-transformer-probe"
-version = "0.1.0"
+version = "0.2.0"
 description = "Prime-factor structural encoding of frozen transformer computations."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,6 +12,7 @@ dependencies = [
     "torch>=2.2",
     "transformers>=4.45",
     "accelerate>=0.30",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +20,7 @@ dev = ["pytest>=8.0"]
 
 [project.scripts]
 godel-probe = "godel_probe.cli:main"
+godel-shortcut-check = "godel_probe.shortcuts:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

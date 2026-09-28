@@ -1,5 +1,11 @@
 
-# Final result
+# Final result (v1 — superseded)
+
+> **Superseded.** This run used the v1 prompts, in which the answer was always
+> the last letter of the last fact line, and loaded models in float16. Both
+> issues are described in `EXPERIMENT_HISTORY.md` (section 6) and fixed in
+> v0.2. A rerun with the de-confounded prompts is pending. The text below is
+> kept unchanged as a record.
 
 ## Question
 

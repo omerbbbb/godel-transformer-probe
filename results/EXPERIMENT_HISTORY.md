@@ -119,10 +119,37 @@ retains the strongest attention sources per head.
 The preserved copy available to this repository does **not** contain executed
 outputs, so the README does not claim a successful V3 run.
 
-## What still needs one fresh run
+## 5. Final v1 GPU run (Qwen2.5) — later found to be confounded
 
-To turn the structural probe from a research prototype into a completed
-experimental result, run the current probe on one or more models that solve
-enough matched chains to pass `--min-correct-pairs`.
+See `FINAL_RESULT.md` and `final_run/`. Qwen2.5-1.5B-Instruct: 0/30
+paired-correct; Qwen2.5-3B-Instruct: 30/30, with exact-GCD / near-GCD
+signatures that did not separate one-hop from two-hop held-out prompts.
 
-Only then can the repository report held-out exact-GCD / near-GCD measurements.
+## 6. Review: positional shortcut and float16 issue
+
+A later review found two problems with the v1 setup:
+
+1. **Positional shortcut.** In every v1 prompt the answer was the last letter
+   of the last fact line. The heuristic "answer = target of the last fact
+   line" scores 100% on v1 prompts; Pythia-70M dropped from 21/40 to 4/40
+   correct when the two fact lines were swapped. Passing the paired-correct
+   filter therefore does not show that a model followed the arrows.
+2. **float16.** v1 loaded models in float16 on GPU (and `torch_dtype="auto"`
+   in the original Colab script). NaN log-probabilities were silently counted
+   as wrong answers. Re-checks on CPU with the v1 prompts, seed 7:
+   Qwen2.5-1.5B-Instruct in float32 → 10/10 paired-correct;
+   Pythia-70M in float16 → non-finite scores for all candidates;
+   Pythia-70M in float32 → 7/20 paired-correct (vs the 0/20 recorded above).
+
+v0.2 adds distractor facts, per-chain shuffled fact order, a shortcut check,
+a permutation-null statistic, configurable dtype (default bfloat16/float32)
+and hard errors on non-finite values. With the new prompts, Pythia-70M passes
+only 1/20 chains (6/60 at a larger sample), consistent with the v1 passes
+relying on the shortcut.
+
+## What still needs to be run
+
+**A rerun of the main experiment (Qwen2.5-3B-Instruct and 1.5B-Instruct)
+with the de-confounded v0.2 prompts is pending.** Until then, no held-out
+structural result from this repository should be treated as evidence about
+one-hop vs two-hop computation.
