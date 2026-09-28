@@ -92,7 +92,26 @@ This is intentionally a narrow conclusion. The experiment does **not** show
 that the probe has recovered the model's full causal reasoning mechanism, and
 it does not establish generalization to other tasks, seeds, model families, or
 prompt distributions. Conditioning on paired-correct chains also changes the
-evaluated population.
+evaluated population. The result comes from one seed and one discovery/test
+split.
+
+## Limitations
+
+- **Start-letter surface cue.** In `src/godel_probe/prompts.py` (lines
+  70–86) the two-hop start letter appears once in the facts (source only),
+  while the one-hop start letter appears twice (target of `A -> B` and source
+  of `B -> C`). This held in all 300 prompts of this run; the letter-disjoint
+  distractors do not remove it. A duplicate-token style attention pattern
+  could separate the classes without multi-hop computation, and several
+  signature factors attend to key position 0, overlapping with attention-sink
+  behaviour (Xiao et al., 2023, arXiv:2309.17453). Planned fix: a shared
+  feeder fact `Z -> A` in every chain (answers unchanged), then a rerun.
+- **Nearly flat null.** Shuffled labels almost never yield near-GCD factors
+  with 25–30 discovery chains, so the null collapses to about 0.5 (SD ≈ 0.01,
+  95th percentile 0.50). The p-value of 1/1001 mainly shows that the real
+  labels produce a signature pointing the right way on held-out chains. The
+  `effect_z` field in the JSON is not a meaningful effect size here.
+- **Single seed / single split**; no confidence intervals yet.
 
 ## Reproducibility
 
